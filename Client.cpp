@@ -139,7 +139,6 @@ int __cdecl main(int argc, char **argv)
 
 		// Connect to server.
 		iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
-		std::cout << "dong" << std::endl;
 		if (iResult == SOCKET_ERROR) {
 			closesocket(ConnectSocket);
 			ConnectSocket = INVALID_SOCKET;

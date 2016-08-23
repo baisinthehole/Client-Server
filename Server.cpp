@@ -16,9 +16,53 @@
 
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "7778"
-#define MAX_CLIENTS 1
+#define MAX_CLIENTS 2
 
-void communicate(SOCKET *ClientSockets, SOCKET &ListenSocket, int socketIndex, int &iResult, int &iSendResult, char *recvbuf, int recvbuflen, bool &error) {
+void communicate(SOCKET &ListenSocket, int &iResult, int &iSendResult, char *recvbuf, int recvbuflen, bool &error) {
+
+	SOCKET ClientSocket = INVALID_SOCKET;
+
+	ClientSocket = accept(ListenSocket, NULL, NULL);
+	std::cout << "connected!" << std::endl;
+	if (ClientSocket == INVALID_SOCKET) {
+		printf("accept failed with error: %d\n", WSAGetLastError());
+		closesocket(ListenSocket);
+		WSACleanup();
+		error = 1;
+	}
+
+	// Receive until the peer shuts down the connection
+	while (true) {
+		iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+		if (iResult > 0) {
+			for (int i = 0; i < iResult; i++) {
+				std::cout << recvbuf[i];
+			}
+			std::cout << std::endl;
+			// Send the buffer to all other clients
+
+			iSendResult = send(ClientSocket, recvbuf, iResult, 0);
+			if (iSendResult == SOCKET_ERROR) {
+				printf("send failed with error: %d\n", WSAGetLastError());
+				closesocket(ClientSocket);
+				WSACleanup();
+				error = 1;
+			}
+			printf("Bytes sent: %d\n", iSendResult);
+
+		}
+		if (recvbuf[0] == '0') {
+			printf("Connection closing...\n");
+			break;
+		}
+		if (iResult == SOCKET_ERROR) {
+			printf("recv failed with error: %d\n", WSAGetLastError());
+			closesocket(ClientSocket);
+			WSACleanup();
+			error = 1;
+		}
+	}
+	/*
 	// Receive until the peer shuts down the connection
 	while (true) {
 		iResult = recv(ClientSockets[socketIndex], recvbuf, recvbuflen, 0);
@@ -53,19 +97,17 @@ void communicate(SOCKET *ClientSockets, SOCKET &ListenSocket, int socketIndex, i
 			error = true;
 			return;
 		}
-	}
+	}*/
 }
 
 int __cdecl main(void)
 {
+	
 	WSADATA wsaData;
 	int iResult;
 
+	SOCKET ClientSocket = INVALID_SOCKET;
 	SOCKET ListenSocket = INVALID_SOCKET;
-	SOCKET ClientSockets[MAX_CLIENTS];
-	for (int i = 0; i < MAX_CLIENTS; i++) {
-		ClientSockets[i] = INVALID_SOCKET;
-	}
 
 	struct addrinfo *result = NULL;
 	struct addrinfo hints;
@@ -124,48 +166,21 @@ int __cdecl main(void)
 		return 1;
 	}
 
-	// Accept client sockets
+	// Receive until the peer shuts down the connection
+
+	bool errors[MAX_CLIENTS] = { false, false };
+	
+	boost::thread firstClient(communicate, ListenSocket, iResult, iSendResult, recvbuf, recvbuflen, errors[0]);
+	boost::thread secondClient(communicate, ListenSocket, iResult, iSendResult, recvbuf, recvbuflen, errors[1]);
+
 	for (int i = 0; i < MAX_CLIENTS; i++) {
-		ClientSockets[i] = accept(ListenSocket, NULL, NULL);
-		std::cout << "connected!" << std::endl;
-		if (ClientSockets[i] == INVALID_SOCKET) {
-			printf("accept failed with error: %d\n", WSAGetLastError());
-			closesocket(ListenSocket);
-			WSACleanup();
+		if (errors[i] == 1) {
 			return 1;
 		}
 	}
 
-	// Receive until the peer shuts down the connection
-	bool error = false;
-	boost::thread firstClient(communicate, ClientSockets, ListenSocket, 0, iResult, iSendResult, recvbuf, recvbuflen, error);
-	//boost::thread secondClient(communicate, ClientSockets, ListenSocket, 1, iResult, iSendResult, recvbuf, recvbuflen, error);
-	if (error) {
-		return 1;
-	}
-	// Have to join before client socket shuts down, to prevent listening to an invalid socket
 	firstClient.join();
 	//secondClient.join();
-
-	// No longer need server socket
-	closesocket(ListenSocket);
-
-	// shutdown the connection since we're done
-	for (int i = 0; i < MAX_CLIENTS; i++) {
-		iResult = shutdown(ClientSockets[i], SD_SEND);
-		if (iResult == SOCKET_ERROR) {
-			printf("shutdown failed with error: %d\n", WSAGetLastError());
-			closesocket(ClientSockets[i]);
-			WSACleanup();
-			return 1;
-		}
-	}
-
-	// cleanup
-	for (int i = 0; i < MAX_CLIENTS; i++) {
-		closesocket(ClientSockets[i]);
-	}
-	WSACleanup();
 
 	system("pause");
 	return 0;
