@@ -20,7 +20,7 @@
 
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "7778"
-#define MAX_CLIENTS 2
+#define MAX_CLIENTS 3
 
 boost::mutex lock;
 
@@ -183,10 +183,11 @@ int __cdecl main(void)
 		clientInfo.ClientSockets[i] = INVALID_SOCKET;
 	}
 
-	boost::thread firstClient(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult, 0);
-	boost::thread secondClient(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult, 1);
+	boost::thread clients[MAX_CLIENTS];
 
-	
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		clients[i] = boost::thread(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult, i);
+	}
 
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		if (clientInfo.errors[i] == 1) {
@@ -194,8 +195,9 @@ int __cdecl main(void)
 		}
 	}
 
-	firstClient.join();
-	secondClient.join();
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		clients[i].join();
+	}
 
 	system("pause");
 	return 0;
