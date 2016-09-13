@@ -29,114 +29,84 @@ boost::mutex lock;
 struct ClientInfo {
 	SOCKET ClientSockets[MAX_CLIENTS];
 
-	int threadIDs[MAX_CLIENTS];
-
-	std::atomic<int> activeThreadID{ 0 };
-
-	std::atomic<int> activeThreadIndex{ -1 };
+	std::atomic<int> activeThreadID{ -1 };
 
 	bool errors[MAX_CLIENTS];
 
 	std::atomic<int> receiveSignal{ 0 };
 
 	std::atomic<int> numBytes{ 0 };
+
+	char recvbuf[DEFAULT_BUFLEN];
+	int recvbuflen = DEFAULT_BUFLEN;
 };
 
-// This function is returning a thread ID as an unsigned long. Call it inside a thread to get the thread ID
-unsigned long getThreadId() {
-	std::string threadId = boost::lexical_cast<std::string>(boost::this_thread::get_id());
-
-	unsigned long threadNumber = 0;
-
-	sscanf_s(threadId.c_str(), "%lx", &threadNumber);
-
-	return threadNumber;
-}
-
-// Converts a thread ID to index
-int convertFromThreadIdToIndex(int id, int threadIds[], int numClients) {
-	for (int i = 0; i < numClients; i++) {
-		if (threadIds[i] == id) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-void sendToClient(ClientInfo &clientInfo, int &iResult, int &iSendResult, int index, char* sendbuf) {
+void sendToClient(ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID, char* sendbuf) {
 	while (true) {
-		if (clientInfo.receiveSignal == 1 && clientInfo.activeThreadIndex != index) {
+		if (clientInfo.receiveSignal == 1 && clientInfo.activeThreadID != ID) {
 			lock.lock();
 
 			iResult = clientInfo.numBytes;
 
-			iSendResult = send(clientInfo.ClientSockets[index], sendbuf, iResult, 0);
+			iSendResult = send(clientInfo.ClientSockets[ID], sendbuf, iResult, 0);
 			if (iSendResult == SOCKET_ERROR) {
 				printf("send failed with error: %d\n", WSAGetLastError());
-				closesocket(clientInfo.ClientSockets[index]);
+				closesocket(clientInfo.ClientSockets[ID]);
 				WSACleanup();
-				clientInfo.errors[index] = 1;
+				clientInfo.errors[ID] = 1;
 			}
-			std::cout << "Bytes sent to " << clientInfo.threadIDs[index] << " = " << iSendResult << std::endl;
+			std::cout << "Bytes sent to " << ID << " = " << iSendResult << std::endl;
 
 			clientInfo.receiveSignal = 0;
-			clientInfo.activeThreadIndex = -1;
+			clientInfo.activeThreadID = -1;
 			lock.unlock();
 		}
 	}
 }
 
-void communicate(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResult, int &iSendResult) {
+void communicate(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID) {
 
-	int index = convertFromThreadIdToIndex(clientInfo.activeThreadID, clientInfo.threadIDs, MAX_CLIENTS);
+	clientInfo.ClientSockets[ID] = accept(ListenSocket, NULL, NULL);
 
-	clientInfo.ClientSockets[index] = accept(ListenSocket, NULL, NULL);
-
-	char recvbuf[DEFAULT_BUFLEN];
-	int recvbuflen = DEFAULT_BUFLEN;
-
-	clientInfo.threadIDs[index] = getThreadId();
-	std::cout << clientInfo.threadIDs[index] << " connected!" << std::endl;
-	if (clientInfo.ClientSockets[index] == INVALID_SOCKET) {
+	std::cout << ID << " connected!" << std::endl;
+	if (clientInfo.ClientSockets[ID] == INVALID_SOCKET) {
 		printf("accept failed with error: %d\n", WSAGetLastError());
 		closesocket(ListenSocket);
 		WSACleanup();
-		clientInfo.errors[index] = 1;
+		clientInfo.errors[ID] = 1;
 	}
 
-	boost::thread sender(sendToClient, std::ref(clientInfo), iResult, iSendResult, index, recvbuf);
+	boost::thread sender(sendToClient, std::ref(clientInfo), iResult, iSendResult, ID, clientInfo.recvbuf);
 
 	// Receive until the peer shuts down the connection
 	while (true) {
-		iResult = recv(clientInfo.ClientSockets[index], recvbuf, recvbuflen, 0);
+		iResult = recv(clientInfo.ClientSockets[ID], clientInfo.recvbuf, clientInfo.recvbuflen, 0);
 		lock.lock();
-		clientInfo.activeThreadID = getThreadId();
-
-		clientInfo.activeThreadIndex = convertFromThreadIdToIndex(clientInfo.activeThreadID, clientInfo.threadIDs, MAX_CLIENTS);
+		clientInfo.activeThreadID = ID;
 
 		clientInfo.receiveSignal = 1;
 
 		clientInfo.numBytes = iResult;
 
 		if (iResult > 0) {
-			std::cout << clientInfo.threadIDs[index] << " says: ";
+			std::cout << ID << " says: ";
 			for (int i = 0; i < iResult; i++) {
-				std::cout << recvbuf[i];
+				std::cout << clientInfo.recvbuf[i];
 			}
 			std::cout << std::endl;
 			
-			std::cout << "Bytes received from " << clientInfo.threadIDs[index] << " = " << iResult << std::endl;
+			std::cout << "Bytes received from " << ID << " = " << iResult << std::endl;
 
 		}
-		if (recvbuf[0] == '0') {
+		if (clientInfo.recvbuf[0] == '0') {
 			printf("Connection closing...\n");
 			break;
 		}
 		if (iResult == SOCKET_ERROR) {
 			printf("recv failed with error: %d\n", WSAGetLastError());
-			closesocket(clientInfo.ClientSockets[index]);
+			closesocket(clientInfo.ClientSockets[ID]);
 			WSACleanup();
-			clientInfo.errors[index] = 1;
+			clientInfo.errors[ID] = 1;
 		}
 		lock.unlock();
 	}
@@ -211,15 +181,12 @@ int __cdecl main(void)
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		clientInfo.errors[i] = false;
 		clientInfo.ClientSockets[i] = INVALID_SOCKET;
-		clientInfo.threadIDs[i] = 0;
 	}
 
-	boost::thread firstClient(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult);
-	boost::thread secondClient(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult);
+	boost::thread firstClient(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult, 0);
+	boost::thread secondClient(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult, 1);
 
-	while (true) {
-		
-	}
+	
 
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		if (clientInfo.errors[i] == 1) {
