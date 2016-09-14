@@ -22,6 +22,8 @@
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "7778"
 
+boost::mutex lock;
+
 void sendMessage(SOCKET &ConnectSocket, char* sendbuf, int &iResult, std::string &input, bool &error) {
 	while (sendbuf[0] != '0') {
 		iResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
@@ -41,7 +43,6 @@ void sendMessage(SOCKET &ConnectSocket, char* sendbuf, int &iResult, std::string
 
 		std::cout << "Type message: ";
 		std::cin >> input;
-		std::cout << "\n";
 
 		std::copy(input.begin(), input.end(), sendbuf);
 		sendbuf[input.size()] = '\0';
@@ -51,17 +52,23 @@ void sendMessage(SOCKET &ConnectSocket, char* sendbuf, int &iResult, std::string
 void receiveMessage(SOCKET &ConnectSocket, char* recvbuf, int &iResult, int recvbuflen, bool &error) {
 	while (recvbuf[0] != '0') {
 		iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+		lock.lock();
 		if (iResult > 0)
-			printf("Bytes received: %d\n", iResult);
+			printf("\nBytes received: %d\n", iResult);
 		else if (iResult == 0)
 			printf("Connection closed\n");
 		else
 			printf("recv failed with error: %d\n", WSAGetLastError());
 
-		for (int i = 0; i < iResult; i++) {
+		std::cout << "client " << recvbuf[iResult - 1] << " says: ";
+
+		for (int i = 0; i < iResult - 2; i++) {
 			std::cout << recvbuf[i];
 		}
 		std::cout << std::endl;
+
+		std::cout << "Type message: ";
+		lock.unlock();
 	}
 }
 
@@ -77,7 +84,6 @@ int __cdecl main(int argc, char **argv)
 
 	std::cout << "Type message: ";
 	std::cin >> input;
-	std::cout << "\n";
 
 	// create new c-string with length equal to input + 1
 	char *sendbuf = new char[input.size() + 1];

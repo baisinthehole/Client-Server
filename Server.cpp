@@ -12,6 +12,7 @@
 #include <boost/lexical_cast.hpp>
 #include <atomic>
 #include <string>
+#include <cmath>
 
 
 // Need to link with Ws2_32.lib
@@ -41,12 +42,37 @@ struct ClientInfo {
 	int recvbuflen = DEFAULT_BUFLEN;
 };
 
+char findNthDigitAndConvertToChar(int n, int value) {
+	int temp = (int)(abs(value) / pow(10, n)) % 10;
+
+	char temp2 = '0' + temp;
+
+	return temp2;
+}
+
+int numDigits(int number) {
+	if (number == 0) {
+		return 1;
+	}
+	int digits = 0;
+	while (number) {
+		number /= 10;
+		digits++;
+	}
+	return digits;
+}
+
 void sendToClient(ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID, char* sendbuf) {
 	while (true) {
 		if (clientInfo.receiveSignal == 1 && clientInfo.activeThreadID != ID) {
 			lock.lock();
 
-			iResult = clientInfo.numBytes;
+			iResult = clientInfo.numBytes + numDigits(clientInfo.activeThreadID) + 1;
+
+			sendbuf[clientInfo.numBytes] = ',';
+			for (int i = 0; i < numDigits(clientInfo.activeThreadID); i++) {
+				sendbuf[clientInfo.numBytes + i + 1] = findNthDigitAndConvertToChar(i, clientInfo.activeThreadID);
+			}
 
 			iSendResult = send(clientInfo.ClientSockets[ID], sendbuf, iResult, 0);
 			if (iSendResult == SOCKET_ERROR) {
@@ -188,7 +214,7 @@ int __cdecl main(void)
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		clients[i] = boost::thread(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult, i);
 	}
-
+	
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		if (clientInfo.errors[i] == 1) {
 			return 1;
