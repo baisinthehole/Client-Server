@@ -44,6 +44,12 @@ struct ClientInfo {
 	// Integer that says how many bytes the current message received is
 	std::atomic<int> numBytes{ 0 };
 
+	// States how many clients that have received the current message
+	std::atomic<int> numClientsReceivedMessage{ 0 };
+
+	// The number of clients connected to the server
+	std::atomic<int> numActiveClients{ 0 };
+
 	// Buffer which incoming messages is stored in
 	char recvbuf[DEFAULT_BUFLEN];
 
@@ -91,7 +97,9 @@ void sendMessage(ClientInfo &clientInfo, int &iSendResult, int &iResult, int ID,
 		WSACleanup();
 		clientInfo.errors[ID] = 1;
 	}
+	lock.lock();
 	std::cout << "Bytes sent to " << ID << " = " << iSendResult << std::endl;
+	lock.unlock();
 }
 
 // Connects client socket to listening socket, when a client requests a connection
@@ -105,6 +113,10 @@ void waitForIncomingClient(SOCKET &ListenSocket, ClientInfo &clientInfo, int ID)
 		WSACleanup();
 		clientInfo.errors[ID] = 1;
 	}
+
+	lock.lock();
+	clientInfo.numActiveClients++;
+	lock.unlock();
 }
 
 // Handles incoming message. Returns 1 if client wants to disconnect. Else 0.
@@ -145,16 +157,26 @@ void sendToClient(ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID
 			iResult = clientInfo.numBytes + numDigits(clientInfo.activeClientID) + 1;
 
 			// Adds client ID to the back of the message
+			lock.lock();
 			sendbuf = addInformationToMessage(sendbuf, clientInfo);
+			lock.unlock();
 
 			// Sends the message with the sender ID to this client
 			sendMessage(clientInfo, iSendResult, iResult, ID, sendbuf);
 
-			// Semaphor
 			lock.lock();
+			clientInfo.numClientsReceivedMessage++;
+			lock.unlock();
+
+			std::cout << "num clients " << clientInfo.numClientsReceivedMessage << std::endl;
+
+			while (clientInfo.numClientsReceivedMessage < clientInfo.numActiveClients - 1) {
+				
+			}
+
 			clientInfo.receiveSignal = 0;
 			clientInfo.activeClientID = -1;
-			lock.unlock();
+			clientInfo.numClientsReceivedMessage = 0;
 		}
 	}
 }
@@ -176,12 +198,14 @@ void communicate(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResult, int
 		clientInfo.activeClientID = ID;
 		clientInfo.receiveSignal = 1;
 		clientInfo.numBytes = iResult;
-		lock.unlock();
+		
 
 		// Handle the message. If it returns 1, that means client wants to disconnect 
 		if (handleReceivedMessage(clientInfo, iResult, ID) == 1) {
+			lock.unlock();
 			break;
 		}
+		lock.unlock();
 	}
 
 	// Finish thread
