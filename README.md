@@ -8,6 +8,8 @@ It should not be used, as it is, in any kind of professional software as it is s
 
 I'm working on a report to make it more understandable to people who want to learn how it is structured
 
+You can reach me at "helmer.n@hotmail.com".
+
 ---------------------------------
 
 DOWNLOAD STUFF:   
@@ -22,7 +24,6 @@ NOTE: I have only tried this in Visual Studio 2015 and I cannot confirm if the c
       in older versions of Visual Studio. The reason its best to do in visual studio is because there
       are Microsoft-supplied technology (in this case sockets) used here.
       
-   
 
 2. Download the C++ boost library:
 
