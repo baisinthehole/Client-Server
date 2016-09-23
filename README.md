@@ -52,7 +52,7 @@ RUN THE PROGRAMS:
    This can be done using command line or through the IDE.
    
    Command line:
-        Run the following command: start "" <path to Client.exe> <IP address of the server>
+        Run the following command: start "" <path to Client.exe> <IP address of the server>.
         
    Visual Studio:
         Go to "Project" -> "Properties".
