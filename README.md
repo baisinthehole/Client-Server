@@ -42,11 +42,11 @@ RUN THE PROGRAMS:
 1. Create two projects in Visual Studio. One called "Server" and another called "Client" 
    (or whatever you like, but I'll refer to them as "Server" and "Client" from this point).
 
-----------------------------------
+
 
 2. Put the code in Server.cpp in the Server project and Client.cpp in the Client project and compile both.
 
-----------------------------------
+
 
 3. To run a Client you need to run it with the IP address of the server. 
    This can be done using command line or through the IDE.
@@ -61,11 +61,11 @@ RUN THE PROGRAMS:
         
         In "Command Arguments", type in the IP address.
 
-----------------------------------
+
 
 4. Run Server like normal. No arguments.
 
-----------------------------------
+
 
 5. To make them communicate, type something in a client and hit enter.
 
