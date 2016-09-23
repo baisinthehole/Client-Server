@@ -8,7 +8,7 @@ It should not be used, as it is, in any kind of professional software as it is s
 
 I'm working on a report to make it more understandable to people who want to learn how it is structured
 
-###############################
+---------------------------------
 
 DOWNLOAD STUFF:   
 
@@ -35,7 +35,7 @@ so it's possible this code doesn't work with an earlier version of boost.
 
 I'm only using a static library "thread.hpp", so there's no need to build anything.
 
-#################################
+------------------------------
 
 RUN THE PROGRAMS:
 
