@@ -20,9 +20,7 @@ You can find Visual Studio 2015 from here:
 https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx
 and then choose "Download Community Free".
 
-NOTE: I have only tried this in Visual Studio 2015 and I cannot confirm if the code works
-      in older versions of Visual Studio. The reason its best to do in visual studio is because there
-      are Microsoft-supplied technology (in this case sockets) used here.
+
       
 
 2. Download the C++ boost library:
