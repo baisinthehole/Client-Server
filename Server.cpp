@@ -57,9 +57,6 @@ struct ClientInfo {
 	// Current index to add new messages to the queue
 	std::atomic<int> currentQueueIndex{ 0 };
 
-	// Keeps track of when the current message is properly processed, and work can start on next message
-	std::atomic<bool> sendingDone{ 0 };
-
 	// Buffer which incoming messages is stored in
 	char recvbuf[DEFAULT_BUFLEN];
 
@@ -90,16 +87,16 @@ int numDigits(int number) {
 }
 
 // Adds client ID to the back of the message 
-void addInformationToMessage(char* sendbuf, ClientInfo &clientInfo) {
-	sendbuf[clientInfo.numBytes] = ',';
+void addInformationToMessage(ClientInfo &clientInfo) {
+	clientInfo.recvbuf[clientInfo.numBytes] = ',';
 	for (int i = 0; i < numDigits(clientInfo.activeClientID); i++) {
-		sendbuf[clientInfo.numBytes + i + 1] = findNthDigitAndConvertToChar(i, clientInfo.activeClientID);
+		clientInfo.recvbuf[clientInfo.numBytes + i + 1] = findNthDigitAndConvertToChar(i, clientInfo.activeClientID);
 	}
 }
 
 // Send message to client
-void sendMessage(ClientInfo &clientInfo, int &iSendResult, int &iResult, int ID, char* sendbuf) {
-	iSendResult = send(clientInfo.ClientSockets[ID], sendbuf, iResult, 0);
+void sendMessage(ClientInfo &clientInfo, int &iSendResult, int &iResult, int ID) {
+	iSendResult = send(clientInfo.ClientSockets[ID], clientInfo.recvbuf, iResult, 0);
 	if (iSendResult == SOCKET_ERROR) {
 		printf("send failed with error: %d\n", WSAGetLastError());
 		closesocket(clientInfo.ClientSockets[ID]);
@@ -179,8 +176,7 @@ void sendToClient(ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID
 	while (true) {
 		// It will only send a message if there are still messages in the queue, 
 		// and if this client is not the client who sent the message
-		if (clientInfo.currentQueueIndex > 0 && clientInfo.activeClientID != ID && clientInfo.sendingDone == 0) {
-			std::cout << "DINGDONG " << clientInfo.activeClientID << std::endl;
+		if (clientInfo.currentQueueIndex > 0 && clientInfo.activeClientID != ID && clientInfo.numClientsReceivedMessage == 0) {
 
 			iResult = clientInfo.numBytes + numDigits(clientInfo.activeClientID) + 1;
 
@@ -189,24 +185,15 @@ void sendToClient(ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID
 
 			// Adds client ID to the back of the message
 			lock.lock();
-			addInformationToMessage(clientInfo.recvbuf, clientInfo);
+			addInformationToMessage(clientInfo);
 			lock.unlock();
 
 			// Sends the message with the sender ID to this client
-			sendMessage(clientInfo, iSendResult, iResult, ID, clientInfo.recvbuf);
+			sendMessage(clientInfo, iSendResult, iResult, ID);
 
 			// Confirm that this thread has sent its message to its client
 			lock.lock();
 			clientInfo.numClientsReceivedMessage++;
-			lock.unlock();
-
-			// Wait until all clients has received the current message, before sending the next one
-			while (clientInfo.numClientsReceivedMessage < clientInfo.numActiveClients - 1) {
-				
-			}
-			// Notify the main thread that all threads has sent the current message
-			lock.lock();
-			clientInfo.sendingDone = 1;
 			lock.unlock();
 		}
 	}
@@ -340,7 +327,7 @@ int __cdecl main(void)
 	while (true) {
 		// All clients have received the current message, so the main thread notifies the other threads
 		// that they can start working on the next message
-		if (clientInfo.sendingDone == 1) {
+		if (clientInfo.numActiveClients > 1 && clientInfo.numClientsReceivedMessage >= clientInfo.numActiveClients - 1) {
 			lock.lock();
 
 			removeFromAndRearrangeQueue(clientInfo);
@@ -351,7 +338,6 @@ int __cdecl main(void)
 				clientInfo.activeClientID = -1;
 			}
 			clientInfo.numClientsReceivedMessage = 0;
-			clientInfo.sendingDone = 0;
 			lock.unlock();
 		}
 	}
