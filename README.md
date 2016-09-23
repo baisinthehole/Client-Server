@@ -8,7 +8,7 @@ It should not be used, as it is, in any kind of professional software as it is s
 
 I'm working on a report to make it more understandable to people who want to learn how it is structured
 
-############################
+###############################
 
 DOWNLOAD STUFF:   
 
@@ -22,7 +22,7 @@ NOTE: I have only tried this in Visual Studio 2015 and I cannot confirm if the c
       in older versions of Visual Studio. The reason its best to do in visual studio is because there
       are Microsoft-supplied technology (in this case sockets) used here.
       
----------------------------      
+------------------------------      
 
 2. Download the C++ boost library:
 
@@ -35,24 +35,24 @@ so it's possible this code doesn't work with an earlier version of boost.
 
 I'm only using a static library "thread.hpp", so there's no need to build anything.
 
-############################
+#################################
 
 RUN THE PROGRAMS:
 
 1. Create two projects in Visual Studio. One called "Server" and another called "Client" 
    (or whatever you like, but I'll refer to them as "Server" and "Client" from this point).
 
------------------------------
+----------------------------------
 
 2. Put the code in Server.cpp in the Server project and Client.cpp in the Client project and compile both.
 
------------------------------
+----------------------------------
 
 3. To run a Client you need to run it with the IP address of the server. 
    This can be done using command line or through the IDE.
    
    Command line:
-        Run the following command: start "" <path to Client.exe> <IP address of the server>.
+        Run the following command: start "" "path to Client.exe" "IP address of the server".
         
    Visual Studio:
         Go to "Project" -> "Properties".
@@ -61,11 +61,11 @@ RUN THE PROGRAMS:
         
         In "Command Arguments", type in the IP address.
 
------------------------------
+----------------------------------
 
 4. Run Server like normal. No arguments.
 
------------------------------
+----------------------------------
 
 5. To make them communicate, type something in a client and hit enter.
 
