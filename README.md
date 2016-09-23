@@ -77,4 +77,4 @@ RUN THE PROGRAMS:
    
    If this happens, the programs work correctly.
    
-   NOTE: You don't need several computers to test several clients. You can run several instances of Clients and one Server on the same machine. 
+   NOTE: You don't need several computers to test several clients. You can run several instances of Client and one Server on the same machine. 
