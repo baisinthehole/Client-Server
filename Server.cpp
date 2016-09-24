@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <iostream>
 #include <boost/thread.hpp>
-#include <boost/lexical_cast.hpp>
 #include <atomic>
 #include <string>
 #include <cmath>
@@ -19,11 +18,19 @@
 #pragma comment (lib, "Ws2_32.lib")
 // #pragma comment (lib, "Mswsock.lib")
 
+// Length of char buffer for messages (Max length of message)
 #define DEFAULT_BUFLEN 512
+
+// Port number to use (make sure this is not a well-known port, like 80)
 #define DEFAULT_PORT "7778"
+
+// Maximum number of clients that can be connected to the server at the same time
 #define MAX_CLIENTS 3
+
+// Maximum number of messages that can be in the queue
 #define QUEUE_LEN 30
 
+// Mutex to lock down critical parts of the code to avoid race conditions
 boost::mutex lock;
 
 // Struct that keeps info useful info about clients and threads
@@ -135,10 +142,13 @@ int handleReceivedMessage(ClientInfo &clientInfo, int &iResult, int ID) {
 
 		std::cout << "Bytes received from " << ID << " = " << iResult << std::endl;
 	}
-
 	// Disconnect
 	if (clientInfo.recvbuf[0] == '0') {
+		std::cout << "DIDDLER" << std::endl;
 		printf("Connection closing...\n");
+		closesocket(clientInfo.ClientSockets[ID]);
+		clientInfo.ClientSockets[ID] = INVALID_SOCKET;
+		WSACleanup();
 		return 1;
 	}
 
@@ -238,7 +248,6 @@ void communicate(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResult, int
 			lock.unlock();
 		}
 	}
-
 	// Finish thread
 	sender.join();
 }
@@ -340,16 +349,17 @@ int __cdecl main(void)
 			clientInfo.numClientsReceivedMessage = 0;
 			lock.unlock();
 		}
-	}
-	
-	for (int i = 0; i < MAX_CLIENTS; i++) {
-		if (clientInfo.errors[i] == 1) {
-			return 1;
-		}
-	}
 
-	for (int i = 0; i < MAX_CLIENTS; i++) {
-		clients[i].join();
+		// Check if any client is disconnected. If yes, close the thread listening to it
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			if (clientInfo.errors[i] == 1) {
+
+				lock.lock();
+				std::cout << i << " disconnected" << std::endl;
+				clients[i].join();
+				clientInfo.errors[i] = 0;
+			}
+		}
 	}
 
 	system("pause");

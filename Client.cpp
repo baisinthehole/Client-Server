@@ -24,6 +24,7 @@
 
 boost::mutex lock;
 
+// Thread for sending a message to the server
 void sendMessage(SOCKET &ConnectSocket, char* sendbuf, int &iResult, std::string &input, bool &error) {
 	while (sendbuf[0] != '0') {
 		iResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
@@ -42,13 +43,14 @@ void sendMessage(SOCKET &ConnectSocket, char* sendbuf, int &iResult, std::string
 		std::cout << std::endl;
 
 		std::cout << "Type message: ";
-		std::cin >> input;
+		std::getline(std::cin, input);
 
 		std::copy(input.begin(), input.end(), sendbuf);
 		sendbuf[input.size()] = '\0';
 	}
 }
 
+// Thread that listens to incoming messages from the server
 void receiveMessage(SOCKET &ConnectSocket, char* recvbuf, int &iResult, int recvbuflen, bool &error) {
 	while (recvbuf[0] != '0') {
 		iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
@@ -83,7 +85,7 @@ int __cdecl main(int argc, char **argv)
 	std::string input;
 
 	std::cout << "Type message: ";
-	std::cin >> input;
+	std::getline(std::cin, input);
 
 	// create new c-string with length equal to input + 1
 	char *sendbuf = new char[input.size() + 1];
