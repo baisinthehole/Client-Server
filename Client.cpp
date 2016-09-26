@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <boost/thread.hpp>
+#include <boost/lexical_cast.hpp>
 
 
 
@@ -22,7 +23,20 @@
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "7778"
 
+#define NUM_BYTES_ID 4
+#define NUM_BYTES_MESSAGE_SIZE 4
+
 boost::mutex lock;
+
+int convertCharToInt(char* buffer, int startIndex) {
+	char ID[NUM_BYTES_ID + 1];
+
+	for (int i = 0; i < NUM_BYTES_ID; i++) {
+		ID[i] = buffer[startIndex + i];
+	}
+	ID[NUM_BYTES_ID] = '\0';
+	return boost::lexical_cast<int>(ID);
+}
 
 // Thread for sending a message to the server
 void sendMessage(SOCKET &ConnectSocket, char* sendbuf, int &iResult, std::string &input, bool &error) {
@@ -52,7 +66,7 @@ void sendMessage(SOCKET &ConnectSocket, char* sendbuf, int &iResult, std::string
 
 // Thread that listens to incoming messages from the server
 void receiveMessage(SOCKET &ConnectSocket, char* recvbuf, int &iResult, int recvbuflen, bool &error) {
-	while (recvbuf[0] != '0') {
+	while (recvbuf[0] != '!') {
 		iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
 		lock.lock();
 		if (iResult > 0)
@@ -62,9 +76,11 @@ void receiveMessage(SOCKET &ConnectSocket, char* recvbuf, int &iResult, int recv
 		else
 			printf("recv failed with error: %d\n", WSAGetLastError());
 
-		std::cout << "client " << recvbuf[iResult - 1] << " says: ";
+		int ID = convertCharToInt(recvbuf, 0);
 
-		for (int i = 0; i < iResult - 2; i++) {
+		std::cout << "client " << ID << " says: ";
+
+		for (int i = NUM_BYTES_ID + NUM_BYTES_MESSAGE_SIZE; i < iResult; i++) {
 			std::cout << recvbuf[i];
 		}
 		std::cout << std::endl;

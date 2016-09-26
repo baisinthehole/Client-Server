@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <boost/thread.hpp>
+#include <boost/lexical_cast.hpp>
 #include <atomic>
 #include <string>
 #include <cmath>
@@ -30,6 +31,12 @@
 // Maximum number of messages that can be in the queue
 #define QUEUE_LEN 30
 
+// Number of bytes allocated as client ID field in the message buffer
+#define NUM_BYTES_ID 4
+
+// Number of bytes allocated telling the message size in the message buffer
+#define NUM_BYTES_MESSAGE_SIZE 4
+
 // Mutex to lock down critical parts of the code to avoid race conditions
 boost::mutex lock;
 
@@ -40,14 +47,8 @@ struct ClientInfo {
 	// Array of sockets. One socket per client
 	SOCKET ClientSockets[MAX_CLIENTS];
 
-	// Stores the ID of the client that last sent a message to the server
-	std::atomic<int> activeClientID{ -1 };
-
 	// Array of error variables. One for each client. Variable is set to 1 if error occurs
 	std::atomic<bool> errors[MAX_CLIENTS];
-
-	// Integer that says how many bytes the current message received is
-	std::atomic<int> numBytes{ 0 };
 
 	// States how many clients that have received the current message
 	std::atomic<int> numClientsReceivedMessage{ 0 };
@@ -93,12 +94,40 @@ int numDigits(int number) {
 	return digits;
 }
 
-// Adds client ID to the back of the message 
-void addInformationToMessage(ClientInfo &clientInfo) {
-	clientInfo.recvbuf[clientInfo.numBytes] = ',';
-	for (int i = 0; i < numDigits(clientInfo.activeClientID); i++) {
-		clientInfo.recvbuf[clientInfo.numBytes + i + 1] = findNthDigitAndConvertToChar(i, clientInfo.activeClientID);
+// Convert an int to a char, and insert it in into a char array
+void convertFromIntToCharAndAddCharToArray(char* buffer, int number, int totalFieldBytes, int startIndex) {
+
+	int numBytes = numDigits(number);
+
+	for (int i = startIndex; i < totalFieldBytes + startIndex - numBytes; i++) {
+		buffer[i] = '0';
 	}
+	int j = numBytes - 1;
+
+	for (int i = startIndex + totalFieldBytes - numBytes; i < startIndex + totalFieldBytes; i++) {
+		buffer[i] = findNthDigitAndConvertToChar(j, number);
+		j--;
+	}
+}
+
+// Convert a subset of a char array to an int
+int convertCharToInt(char* buffer, int startIndex) {
+	char ID[NUM_BYTES_ID + 1];
+
+	for (int i = 0; i < NUM_BYTES_ID; i++) {
+		ID[i] = buffer[startIndex + i];
+	}
+	ID[NUM_BYTES_ID] = '\0';
+	return boost::lexical_cast<int>(ID);
+}
+
+// Adds client ID to the back of the message 
+void addInformationToMessage(ClientInfo &clientInfo, int ID, int numBytesID, int numBytesMessageSize, int numBytesMessage) {
+	for (int i = numBytesMessage - 1; i > -1; i--) {
+		clientInfo.recvbuf[i + numBytesID + numBytesMessageSize] = clientInfo.recvbuf[i];
+	}
+	convertFromIntToCharAndAddCharToArray(clientInfo.recvbuf, ID, numBytesID, 0);
+	convertFromIntToCharAndAddCharToArray(clientInfo.recvbuf, numBytesMessage, numBytesMessageSize, numBytesID);
 }
 
 // Send message to client
@@ -142,8 +171,8 @@ int handleReceivedMessage(ClientInfo &clientInfo, int &iResult, int ID) {
 
 		std::cout << "Bytes received from " << ID << " = " << iResult << std::endl;
 	}
-	// Disconnect
-	if (clientInfo.recvbuf[0] == '0') {
+	// Disconnect (TODO)
+	if (clientInfo.recvbuf[0] == '!') {
 		std::cout << "DIDDLER" << std::endl;
 		printf("Connection closing...\n");
 		closesocket(clientInfo.ClientSockets[ID]);
@@ -152,7 +181,7 @@ int handleReceivedMessage(ClientInfo &clientInfo, int &iResult, int ID) {
 		return 1;
 	}
 
-	// Error
+	// Error (TODO)
 	if (iResult == SOCKET_ERROR) {
 		printf("recv failed with error: %d\n", WSAGetLastError());
 		closesocket(clientInfo.ClientSockets[ID]);
@@ -181,35 +210,37 @@ void removeFromAndRearrangeQueue(ClientInfo &clientInfo) {
 	clientInfo.currentQueueIndex--;
 }
 
-// Function that sends a message to a client
+// Thread that sends a message to a client
 void sendToClient(ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID) {
 	while (true) {
 		// It will only send a message if there are still messages in the queue, 
 		// and if this client is not the client who sent the message
-		if (clientInfo.currentQueueIndex > 0 && clientInfo.activeClientID != ID && clientInfo.numClientsReceivedMessage == 0) {
-
-			iResult = clientInfo.numBytes + numDigits(clientInfo.activeClientID) + 1;
-
+		if (clientInfo.currentQueueIndex > 0 && clientInfo.numClientsReceivedMessage == 0) {
 			// Set the message to be sent equal to the first message in the queue
+			lock.lock();
 			*clientInfo.recvbuf = getMessageFromQueue(clientInfo);
-
-			// Adds client ID to the back of the message
-			lock.lock();
-			addInformationToMessage(clientInfo);
 			lock.unlock();
 
-			// Sends the message with the sender ID to this client
-			sendMessage(clientInfo, iSendResult, iResult, ID);
+			// If the message was sent by another client than this, send the message to this client
+			if (convertCharToInt(clientInfo.recvbuf, 0) != ID) {
+				iResult = NUM_BYTES_ID + NUM_BYTES_MESSAGE_SIZE + convertCharToInt(clientInfo.recvbuf, NUM_BYTES_ID);
 
-			// Confirm that this thread has sent its message to its client
-			lock.lock();
-			clientInfo.numClientsReceivedMessage++;
-			lock.unlock();
+				// Sends the message with the sender ID to this client
+				sendMessage(clientInfo, iSendResult, iResult, ID);
+
+				// Confirm that this thread has sent its message to its client
+				lock.lock();
+				clientInfo.numClientsReceivedMessage++;
+				lock.unlock();
+			}
 		}
 	}
 }
 
-void communicate(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID) {
+// Thread that listens to incoming messages from clients
+void receiveFromClient(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID) {
+	int numBytesID = 0;
+	int numBytesMessage = 0;
 
 	// This line polls the thread until the listening socket receives a connection from a client
 	waitForIncomingClient(ListenSocket, clientInfo, ID);
@@ -232,10 +263,6 @@ void communicate(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResult, int
 		}
 		lock.unlock();
 
-		// Change shared variables
-		clientInfo.activeClientID = ID;
-		clientInfo.numBytes = iResult;
-
 		// Handle the message. If it returns 1, that means client wants to disconnect 
 		if (handleReceivedMessage(clientInfo, iResult, ID) == 1) {
 			break;
@@ -244,6 +271,7 @@ void communicate(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResult, int
 		// Only add message to queue if there are other clients to send to
 		if (clientInfo.numActiveClients > 1) {
 			lock.lock();
+			addInformationToMessage(clientInfo, ID, NUM_BYTES_ID, NUM_BYTES_MESSAGE_SIZE, iResult);
 			addMessageToQueue(clientInfo);
 			lock.unlock();
 		}
@@ -330,7 +358,7 @@ int __cdecl main(void)
 	boost::thread clients[MAX_CLIENTS];
 
 	for (int i = 0; i < MAX_CLIENTS; i++) {
-		clients[i] = boost::thread(communicate, ListenSocket, std::ref(clientInfo), iResult, iSendResult, i);
+		clients[i] = boost::thread(receiveFromClient, ListenSocket, std::ref(clientInfo), iResult, iSendResult, i);
 	}
 
 	while (true) {
@@ -343,9 +371,6 @@ int __cdecl main(void)
 
 			std::cout << "all clients received message" << std::endl;
 
-			if (clientInfo.currentQueueIndex < 1) {
-				clientInfo.activeClientID = -1;
-			}
 			clientInfo.numClientsReceivedMessage = 0;
 			lock.unlock();
 		}
