@@ -34,7 +34,7 @@ The version used in this implementation is 1.60.0.
 The only boost library that I'm using is Thread. I see that this is updated in 1.60.0,
 so it's possible this code doesn't work with an earlier version of boost.
 
-I'm only using a static library "thread.hpp", so there's no need to build anything.
+Instructions how to build the library should be available on the website
 
 ------------------------------
 
