@@ -18,25 +18,16 @@ You can reach me at "helmer.n@hotmail.com".
 
 1. Download Microsoft Visual Studio 2015 Community:
 
-You can find Visual Studio 2015 from here: 
-https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx
-and then choose "Download Community Free".
+* You can find Visual Studio 2015 from here: https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx and then choose "Download Community Free".
 
-NOTE: I have only tried this in Visual Studio 2015 and I cannot confirm if the code works
-      in older versions of Visual Studio. The reason its best to do in visual studio is because there
-      are Microsoft-supplied technology (in this case sockets) used here.
+* NOTE: I have only tried this in Visual Studio 2015 and I cannot confirm if the code works in older versions of Visual Studio. The reason its best to do in visual studio is because there are Microsoft-supplied technology (in this case sockets) used here.
       
 
 2. Download the C++ boost library:
 
-Download boost from here:
-http://www.boost.org/users/history/
-The version used in this implementation is 1.60.0. 
+* Download boost from here: http://www.boost.org/users/history/ The version used in this implementation is 1.60.0. I see that the Thread library is updated in 1.60.0, so it's possible this code doesn't work with an earlier version of boost.
 
-I see that the Thread library is updated in 1.60.0,
-so it's possible this code doesn't work with an earlier version of boost.
-
-Instructions how to build the library should be available on the website
+* Instructions how to build the library should be available on the website
 
 ------------------------------
 
