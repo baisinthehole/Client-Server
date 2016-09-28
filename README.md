@@ -1,4 +1,6 @@
-NOTES:  
+# Multichat program in C++ with a multithreaded server and client
+
+## NOTES:  
 
 This is an experiment to implement a proper working client-server architecture, in C++.
 
@@ -12,7 +14,7 @@ You can reach me at "helmer.n@hotmail.com".
 
 ---------------------------------
 
-DOWNLOAD STUFF:   
+## DOWNLOAD STUFF:   
 
 1. Download Microsoft Visual Studio 2015 Community:
 
@@ -38,7 +40,7 @@ Instructions how to build the library should be available on the website
 
 ------------------------------
 
-RUN THE PROGRAMS:
+## RUN THE PROGRAMS:
 
 1. Create two projects in Visual Studio. One called "Server" and another called "Client" 
    (or whatever you like, but I'll refer to them as "Server" and "Client" from this point).
@@ -53,7 +55,7 @@ RUN THE PROGRAMS:
    This can be done using command line or through the IDE.
    
    Command line:
-        Run the following command: start "" "path to Client.exe" "IP address of the server".
+        Run the following command: `start "" <path to Client.exe> <IP address of the server>`.
         
    Visual Studio:
         Go to "Project" -> "Properties".
