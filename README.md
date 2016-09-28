@@ -77,6 +77,7 @@ Instructions how to build the library should be available on the website
 3. Server doesn't require any arguments.
 
       1. Command line:
+            
             * Run the following command: `start "" <path to Server.exe>`.
 
 ### Start chatting
