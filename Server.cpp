@@ -173,7 +173,6 @@ int handleReceivedMessage(ClientInfo &clientInfo, int &iResult, int ID) {
 	}
 	// Disconnect (TODO)
 	if (clientInfo.recvbuf[0] == '!') {
-		std::cout << "DIDDLER" << std::endl;
 		printf("Connection closing...\n");
 		closesocket(clientInfo.ClientSockets[ID]);
 		clientInfo.ClientSockets[ID] = INVALID_SOCKET;

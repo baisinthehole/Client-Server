@@ -50,12 +50,6 @@ void sendMessage(SOCKET &ConnectSocket, char* sendbuf, int &iResult, std::string
 			return;
 		}
 
-		printf("Bytes Sent: %ld\n", iResult);
-		for (int i = 0; i < strlen(sendbuf); i++) {
-			std::cout << sendbuf[i];
-		}
-		std::cout << std::endl;
-
 		std::cout << "Type message: ";
 		std::getline(std::cin, input);
 
@@ -111,12 +105,6 @@ int __cdecl main(int argc, char **argv)
 
 	// set last element to '\0' to end the c-string
 	sendbuf[input.size()] = '\0';
-
-	// print the message that will be sent
-	for (int i = 0; i < input.size(); i++) {
-		std::cout << input[i];
-	}
-	std::cout << std::endl;
 
 	// c-string that will contain any incoming message from the server
 	char recvbuf[DEFAULT_BUFLEN];
