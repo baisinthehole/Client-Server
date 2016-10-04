@@ -8,7 +8,7 @@ Feel free to try it out yourself. Feedback about bugs, possible improvements, et
 
 It should not be used, as it is, in any kind of professional software as it is still in development. 
 
-I'm working on a report to make it more understandable to people who want to learn how it is structured
+The report describes how the programs are structured and implemented.
 
 You can reach me at "helmer.n@hotmail.com".
 
