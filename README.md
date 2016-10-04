@@ -68,7 +68,6 @@ You can reach me at "helmer.n@hotmail.com".
 3. Server doesn't require any arguments.
 
       1. Command line:
-            
             * Run the following command: `start "" <path to Server.exe>`.
 
 ### Start chatting
