@@ -214,7 +214,8 @@ void sendToClient(ClientInfo &clientInfo, int &iResult, int &iSendResult, int ID
 	while (true) {
 		// It will only send a message if there are still messages in the queue, 
 		// and if this client is not the client who sent the message
-		if (clientInfo.currentQueueIndex > 0 && clientInfo.numClientsReceivedMessage == 0) {
+		if (clientInfo.currentQueueIndex > 0 && clientInfo.numClientsReceivedMessage < clientInfo.numActiveClients - 1) {
+
 			// Set the message to be sent equal to the first message in the queue
 			lock.lock();
 			*clientInfo.recvbuf = getMessageFromQueue(clientInfo);
@@ -272,6 +273,7 @@ void receiveFromClient(SOCKET &ListenSocket, ClientInfo &clientInfo, int &iResul
 			lock.lock();
 			addInformationToMessage(clientInfo, ID, NUM_BYTES_ID, NUM_BYTES_MESSAGE_SIZE, iResult);
 			addMessageToQueue(clientInfo);
+
 			lock.unlock();
 		}
 	}
@@ -363,7 +365,9 @@ int __cdecl main(void)
 	while (true) {
 		// All clients have received the current message, so the main thread notifies the other threads
 		// that they can start working on the next message
+		
 		if (clientInfo.numActiveClients > 1 && clientInfo.numClientsReceivedMessage >= clientInfo.numActiveClients - 1) {
+
 			lock.lock();
 
 			removeFromAndRearrangeQueue(clientInfo);
@@ -371,7 +375,9 @@ int __cdecl main(void)
 			std::cout << "all clients received message" << std::endl;
 
 			clientInfo.numClientsReceivedMessage = 0;
+
 			lock.unlock();
+
 		}
 
 		// Check if any client is disconnected. If yes, close the thread listening to it
